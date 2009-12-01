@@ -9,7 +9,7 @@ from pyquery import PyQuery
 
 products = {'firefox':
                 {'uri':'http://ftp.mozilla.org/pub/mozilla.org/firefox/tinderbox-builds/',
-                 'branches':['mozilla-central-linux', 'mobile-1.9.2'],
+                 'branches':['mozilla-1.9.2-linux', 'mobile-1.9.2', 'mozilla-1.9.2-wince'],
                 },
            }
 

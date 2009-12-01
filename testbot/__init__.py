@@ -15,6 +15,7 @@ clients_design_dir = os.path.join(design_dir, 'clients')
 jobs_design_dir = os.path.join(design_dir, 'jobs')
 builds_design_dir = os.path.join(design_dir, 'builds')
 mozilla_design_dir = os.path.join(design_dir, 'mozilla')
+devices_design_dir = os.path.join(design_dir, 'devices')
 
 def create_job(db, job):
     job['type'] = 'job'
@@ -27,6 +28,7 @@ def sync(db):
     db.sync_design_doc('jobs', jobs_design_dir)
     db.sync_design_doc('builds', builds_design_dir)
     db.sync_design_doc('mozilla', mozilla_design_dir)
+    db.sync_design_doc('devices',devices_design_dir)
 
 def cli():
     if not sys.argv[-1].startswith('http'):
@@ -63,14 +65,10 @@ class MozillaManager(object):
         ]
     
     def get_job(self, client):
-        print "MozillaManager - get_job"
-        print str(client)
         if client['capabilities']['platform'].get('os.sysname', None) == 'Linux':
-            print "Client is linux"
             if client['capabilities']['platform'].get('os.linux.distrobution',[None])[0] == 'CentOS':
                 # Desktop linux
                 supported_jobtypes = client['jobtypes']
-                
                 while len(supported_jobtypes) is not 0:
                     jtype = random.sample(supported_jobtypes, 1)[0]
                     result = self.db.views.mozilla.desktopBuilds(
@@ -85,7 +83,6 @@ class MozillaManager(object):
     
     def new_build(self, build):
         jobs = []
-        
         if build['branch'] == 'mozilla-central-linux':
             build_uri = [u for u in build['uris'] if u.endswith('.en-US.linux-i686.tar.bz2')]
             tests_uri = [u for u in build['uris'] if u.endswith('.en-US.linux-i686.tests.tar.bz2')]
@@ -100,7 +97,7 @@ class MozillaManager(object):
                 # Build is invalid
                 build['invalid'] = True
                 return None        
-        elif build['branch'] == 'mobile-1.9.2-wince':
+        elif build['branch'] == 'mozilla-1.9.2-wince':
             tests_uri = [u for u in build['uris'] if u.endswith('.tests.tar.bz2')]
             winCE_package = [u for u in build['uris'] if u.endswith('.wince-arm.zip')]
             
@@ -117,19 +114,34 @@ class MozillaManager(object):
         elif build['branch'] == 'mobile-1.9.2':
             fennec_uris = [u for u in build['uris'] if u.startswith('fennec')]
             xulrunner_uris = [u for u in build['uris'] if u.startswith('xulrunner')]
-
-            # fennec builds currently don't produce a test package
-            # fennec_tests_uri = [u for u in fennec_uris if u.endswith('.tests.tar.bz2')]
-            # if len(fennec_tests_uri) is 0:
-            #     build['invalid'] = True
-            #     return None # Build is invalid
             
+            # The fennec-<version>-<platform>.tar.bz2 contains xulrunner so 
+            # we want to use that one ( this is maemo fennec)
+            fennec_uri = [u for u in fennec_uris if u.endswith('gnueabi-arm.tar.bz2')]
+            if len(fennec_uri) is not 0:
+                # We have a maemo build
+                product = 'Fennec Maemo'
+                os = 'Maemo'
+                hardware = 'n900'
+            else:
+                fennec_uri = [u for u in fennec_uris if u.endswith('wince-arm.zip')]
+                if len(fennec_uri) is 0:
+                    build['invalid'] = True
+                    return None # Build Invalid
+                product = 'Fennec WinMo'
+                os = 'WinMo'
+                hardware = 'Various'
+                             
             xulrunner_tests_uri = [u for u in xulrunner_uris if u.endswith('.tests.tar.bz2')]
             if len(xulrunner_tests_uri) is 0:
                 build['invalid'] = True
                 return None # Build is invalid
             
             
+            for jobtype in self.all_mobile_testtypes:
+                jobs.append({'build':build, 'jobtype':jobtype, 'package_uri':fennec_uri,
+                             'tests_uri':xulrunner_tests_uri, 'product':product, 
+                             'platform':{'os.sysname':os, 'hardware':hardware}})
             
         return jobs
 
