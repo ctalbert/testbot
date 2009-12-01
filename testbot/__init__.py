@@ -83,7 +83,7 @@ class MozillaManager(object):
     
     def new_build(self, build):
         jobs = []
-        if build['branch'] == 'mozilla-central-linux':
+        if build['branch'] == 'mozilla-1.9.2-linux':
             build_uri = [u for u in build['uris'] if u.endswith('.en-US.linux-i686.tar.bz2')]
             tests_uri = [u for u in build['uris'] if u.endswith('.en-US.linux-i686.tests.tar.bz2')]
             if len(build_uri) is 1 and len(tests_uri) is 1:
@@ -112,9 +112,8 @@ class MozillaManager(object):
                              'tests_uri':tests_uri, 'product':'FirefoxCE', 
                              'platform':{'os.sysname':"WinCE", 'hardware':'Tegra'}})
         elif build['branch'] == 'mobile-1.9.2':
-            fennec_uris = [u for u in build['uris'] if u.startswith('fennec')]
-            xulrunner_uris = [u for u in build['uris'] if u.startswith('xulrunner')]
-            
+            fennec_uris = [u for u in build['uris'] if (u.rfind('fennec-') != -1)]
+            xulrunner_uris = [u for u in build['uris'] if (u.rfind('xulrunner-') != -1)]
             # The fennec-<version>-<platform>.tar.bz2 contains xulrunner so 
             # we want to use that one ( this is maemo fennec)
             fennec_uri = [u for u in fennec_uris if u.endswith('gnueabi-arm.tar.bz2')]
@@ -142,7 +141,6 @@ class MozillaManager(object):
                 jobs.append({'build':build, 'jobtype':jobtype, 'package_uri':fennec_uri,
                              'tests_uri':xulrunner_tests_uri, 'product':product, 
                              'platform':{'os.sysname':os, 'hardware':hardware}})
-            
         return jobs
 
 
