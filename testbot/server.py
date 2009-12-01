@@ -85,6 +85,7 @@ class TestBotAPI(RestApplication):
                 client.update(client_dict)
             
             job = self.manager.get_job(client)
+            print "manager gave us this job: " + str(job)
             if job is not None:
                 job.status = 'locked'
                 self.db.save(job)
@@ -127,7 +128,7 @@ class TestBotAPI(RestApplication):
             report = json.loads(str(request.body))
             # Add in support for report handlers
             return JSONResponse(report) # Debug response
-        
+
     def GET(self, request, collection):
         if collection == 'whoami':
             name = request.query['name']
@@ -138,6 +139,43 @@ class TestBotAPI(RestApplication):
                 return JSONResponse(self.db.get(info['id']))
             else:
                 return JSONResponse(result[0])
+        # Registering a device must be as simple as possible, just read key
+        # value pairs from command line, generate a document from that        
+        if collection == 'registerdevice':
+            print "request.query = " + str(request.query)
+            assert request.query['NAME']
+                        
+            # Find the device in the database
+            result = self.db.views.devices.byName(key=request.query['NAME'])
+            if len(result) is 0:
+                # create record for device
+                devicerecord = self.db.create({"type":"device",
+                                               "name":request.query["NAME"],
+                                               "ip":request.query["IPADDR"],
+                                               "cmdport":request.query["CMDPORT"],
+                                               "dataport":request.query["DATAPORT"],
+                                               "os":request.query["OS"],
+                                               "scrnwidth":request.query["SCRNWIDTH"],
+                                               "scrnheight":request.query["SCRNHEIGHT"],
+                                               "bpp":request.query["BPP"],
+                                               "memory":request.query["MEMORY"]}) 
+                return JSONResponse(self.db.get(devicerecord['id']))
+            else:
+                # Ensure data in database is correct, we'll just update,
+                # there can only be one device per device name in the db
+                assert (len(result) is 1)
+                rec = result[0]
+                rec["name"] = request.query["NAME"]
+                rec["ip"] = request.query["IPADDR"]
+                rec["cmdport"] = request.query["CMDPORT"]
+                rec["dataport"] = request.query["DATAPORT"]
+                rec["os"] = request.query["OS"]
+                rec["scrnwidth"] = request.query["SCRNWIDTH"]
+                rec["scrnheight"] = request.query["SCRNHEIGHT"]
+                rec["bpp"] = request.query["BPP"]
+                rec["memory"] = request.query["MEMORY"]
+                info = self.db.update(rec)
+                return JSONResponse(info)
 
 
 
