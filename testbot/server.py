@@ -158,7 +158,9 @@ class TestBotAPI(RestApplication):
                                                "scrnwidth":request.query["SCRNWIDTH"],
                                                "scrnheight":request.query["SCRNHEIGHT"],
                                                "bpp":request.query["BPP"],
-                                               "memory":request.query["MEMORY"]}) 
+                                               "memory":request.query["MEMORY"],
+                                               "hardware": request.query["HARDWARE"],
+                                               "pool":request.query["POOL"]}) 
                 return JSONResponse(self.db.get(devicerecord['id']))
             else:
                 # Ensure data in database is correct, we'll just update,
@@ -174,6 +176,8 @@ class TestBotAPI(RestApplication):
                 rec["scrnheight"] = request.query["SCRNHEIGHT"]
                 rec["bpp"] = request.query["BPP"]
                 rec["memory"] = request.query["MEMORY"]
+                rec["hardware"] = request.query["HARDWARE"]
+                rec["pool"] = request.query["POOL"]
                 info = self.db.update(rec)
                 return JSONResponse(info)
 
