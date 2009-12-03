@@ -75,7 +75,42 @@ class TestBotAPI(RestApplication):
         self.db = db
         self.manager = manager
         self.manager.db = db
+        # TODO: This will become a user centric configuration issue, and we will
+        # take this code out, but right now I need a way to easily seed an
+        # empty db, so this is it.
+        self.configureJobMapping()
+    
+    def configureJobMapping(self):
+        # Make us a mapping for default maemo fennec job
+        jobmap = {'type': 'jobmap',
+                  'build':'.*fennec.*linux-gnueabi-arm\.tar\.bz2',
+                  'testpackage':'xulrunner.*linux-gnueabi-arm\.tests\.tar\.bz2',
+                  'platform': {'os.sysname': 'maemo'},
+                  'pool': 'general',
+                  'jobtypes': ['mochitest', 'mochitest-chrome', 'browser-chrome', 'reftest', 'crashtest', 'js-reftest', 'xpcshell']
+                 }
+        # Check to see if this rule exists, create if not
+        result = self.db.views.jobmap.byBuild(key=jobmap['build'])
+        if (len(result) is 0):
+            self.db.create(jobmap)
+            
+        # And now one for default winmo fennec
+        jobmap['build'] = '.*fennec.*wince-arm.zip'
+        jobmap['testpackage'] = 'xulrunner.*wince-arm\.tests\.tar\.bz2'
+        jobmap['platform']['os.sysname'] = 'winmo'
+        result = self.db.views.jobmap.byBuild(key=jobmap['build'])
+        if (len(result) is 0):
+            self.db.create(jobmap)
         
+        # And one for firefoxCE
+        jobmap['build'] = '.*firefox.*wince-arm\.zip'
+        jobmap['testpackage'] = 'firefox.*wince-arm\.tests\.tar\.bz2'
+        jobmap['platform']['os.sysname'] = 'wince'
+        jobmap['platform']['hardware'] = 'mobinova' # we want to ensure this is mobinova tests
+        result = self.db.views.jobmap.byBuild(key=jobmap['build'])
+        if (len(result) is 0):
+            self.db.create(jobmap)
+
     def POST(self, request, collection, resource=None):
         print "testBotAPI::Post request = " + str(request)
         if collection == 'getJob':

@@ -1,6 +1,7 @@
 import os
 import sys
 import random
+import re
 from wsgiref.simple_server import make_server
 from datetime import datetime
 
@@ -16,6 +17,7 @@ jobs_design_dir = os.path.join(design_dir, 'jobs')
 builds_design_dir = os.path.join(design_dir, 'builds')
 mozilla_design_dir = os.path.join(design_dir, 'mozilla')
 devices_design_dir = os.path.join(design_dir, 'devices')
+jobmap_design_dir = os.path.join(design_dir, 'jobmap')
 
 def create_job(db, job):
     job['type'] = 'job'
@@ -29,6 +31,7 @@ def sync(db):
     db.sync_design_doc('builds', builds_design_dir)
     db.sync_design_doc('mozilla', mozilla_design_dir)
     db.sync_design_doc('devices',devices_design_dir)
+    db.sync_design_doc('jobmap',jobmap_design_dir)
 
 def cli():
     if not sys.argv[-1].startswith('http'):
@@ -83,65 +86,34 @@ class MozillaManager(object):
     
     def new_build(self, build):
         jobs = []
-        if build['branch'] == 'mozilla-1.9.2-linux':
-            build_uri = [u for u in build['uris'] if u.endswith('.en-US.linux-i686.tar.bz2')]
-            tests_uri = [u for u in build['uris'] if u.endswith('.en-US.linux-i686.tests.tar.bz2')]
-            if len(build_uri) is 1 and len(tests_uri) is 1:
-                build_uri = build_uri[0]
-                tests_uri = tests_uri[0]    
-                for jobtype in ['mochitest', 'reftest', 'mochitest-chrome']:
-                    jobs.append({'build':build, 'jobtype':jobtype, 'package_uri':build_uri, 
-                                 'tests_uri':tests_uri, 'platform':{'os.sysname':'Linux'},
-                                 'product':'Firefox'})
-            else:
-                # Build is invalid
-                build['invalid'] = True
-                return None        
-        elif build['branch'] == 'mozilla-1.9.2-wince':
-            tests_uri = [u for u in build['uris'] if u.endswith('.tests.tar.bz2')]
-            winCE_package = [u for u in build['uris'] if u.endswith('.wince-arm.zip')]
-            
-            if len(winCE_package) is 0 or len(tests_uri) is 0:
-                build['invalid'] = True
-                return None # Build is invalid
-            tests_uri = tests_uri[0]
-            winCE_package = winCE_package[0]
-            
-            for jobtype in self.all_mobile_testtypes:
-                jobs.append({'build':build, 'jobtype':jobtype, 'package_uri':winCE_package,
-                             'tests_uri':tests_uri, 'product':'FirefoxCE', 
-                             'platform':{'os.sysname':"WinCE", 'hardware':'Tegra'}})
-        elif build['branch'] == 'mobile-1.9.2':
-            fennec_uris = [u for u in build['uris'] if (u.rfind('fennec-') != -1)]
-            xulrunner_uris = [u for u in build['uris'] if (u.rfind('xulrunner-') != -1)]
-            # The fennec-<version>-<platform>.tar.bz2 contains xulrunner so 
-            # we want to use that one ( this is maemo fennec)
-            fennec_uri = [u for u in fennec_uris if u.endswith('gnueabi-arm.tar.bz2')]
-            if len(fennec_uri) is not 0:
-                # We have a maemo build
-                product = 'Fennec Maemo'
-                os = 'Maemo'
-                hardware = 'n900'
-            else:
-                fennec_uri = [u for u in fennec_uris if u.endswith('wince-arm.zip')]
-                if len(fennec_uri) is 0:
-                    build['invalid'] = True
-                    return None # Build Invalid
-                product = 'Fennec WinMo'
-                os = 'WinMo'
-                hardware = 'Various'
-                             
-            xulrunner_tests_uri = [u for u in xulrunner_uris if u.endswith('.tests.tar.bz2')]
-            if len(xulrunner_tests_uri) is 0:
-                build['invalid'] = True
-                return None # Build is invalid
-            
-            
-            for jobtype in self.all_mobile_testtypes:
-                jobs.append({'build':build, 'jobtype':jobtype, 'package_uri':fennec_uri,
-                             'tests_uri':xulrunner_tests_uri, 'product':product, 
-                             'platform':{'os.sysname':os, 'hardware':hardware}})
-        return jobs
+        # Get the mapping of our job table
+        jobmaprows = self.db.views.jobmap.byBuild()        
+        for u in build['uris']:
+            for j in jobmaprows:
+                if re.search(j['build'], u):
+                    packageURI = u
+                    # get test package
+                    for t in build['uris']:
+                        if re.search(j['testpackage'], t):
+                          testURI = t
+                          break
+                    # Create the jobs for this build
+                    for jobtype in j['jobtypes']:
+                      jobs.append({'build': j['build'],
+                                   'jobtype': jobtype,
+                                   'package_uri': packageURI,
+                                   'tests_uri': testURI,
+                                   'product':j['build'],
+                                   'pool': j['pool'],
+                                   'platform': j['platform']})
+                    # We have created all jobs for this build, we can now return
+                    print "This is jobs created: " + str(jobs)
+                    return jobs
+ 
+                   
+        
+                                            
+        
 
 
     
