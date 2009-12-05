@@ -15,12 +15,16 @@ class ClientException(Exception): pass
 
 class JobException(Exception): pass
 
+print "client.py is loaded"
+
 class Client(object):
     heartbeat_interval = 60
     waiting_sleep = 60
     jobtypes = []
+    device = {}
     
     def __init__(self, server_uri, name):
+        print "client init is beginning"
         if not server_uri.endswith('/'):
             server_uri += '/'
         self.server_uri = server_uri
@@ -28,8 +32,10 @@ class Client(object):
         self.registered = False
         self.running = False
         self.heartbeat_running = False
+        print "client init is finishing"
     
     def register(self):
+        print "client reigister is beginning"
         resp, content = http.request(self.server_uri+'api/whoami?name='+self.name, method="GET")
         if resp.status == 200:
             self.client_info = json.loads(content)
@@ -41,7 +47,8 @@ class Client(object):
     
     @property
     def capabilities(self):
-        return {'platform':self.platform, 'jobtypes':self.jobtypes}
+        print "capapbilities is being accessed"
+        return {'platform':self.platform, 'jobtypes':self.jobtypes, 'device':self.device}
     
     @property
     def platform(self):

@@ -67,23 +67,85 @@ class MozillaManager(object):
         'talos-tpan', 'talos-tzoom',
         ]
     
-    def get_job(self, client):
-        if client['capabilities']['platform'].get('os.sysname', None) == 'Linux':
-            if client['capabilities']['platform'].get('os.linux.distrobution',[None])[0] == 'CentOS':
-                # Desktop linux
-                supported_jobtypes = client['jobtypes']
-                while len(supported_jobtypes) is not 0:
-                    jtype = random.sample(supported_jobtypes, 1)[0]
-                    result = self.db.views.mozilla.desktopBuilds(
-                        startkey=['Linux', jtype, {}], endkey=['Linux', jtype, None], 
-                        descending=True, limit=1)
-                    if len(result) is not 0:
-                        return result[0]
-                    supported_jobtypes.remove(jtype)
-                # No jobs were found
+    def findmatch(self, product, osname, pool, osversion, hardware, memory, bpp, screenh, screenw):
+
+        # Go through the jobs and filter down from most specific job to least        
+        jobs = self.db.views.jobs.pendingByJobAttributes(
+            startkey=[{}, product, osname, pool, osversion, hardware, memory, bpp, screenh],
+            endkey=[now, product, osname, pool, osversion, hardware, memory, bpp, screenh + '\u9999'],
+            limit=1)
+        if (len(jobs) is not 0):
+            return jobs
+
+        jobs = self.db.views.jobs.pendingByJobAttributes(
+            startkey=[product, osname, pool, osversion, hardware, memory, bpp],
+            endkey=[product, osname, pool, osversion, hardware, memory, bpp + '\u9999'],
+            limit=1)
+        if (len(jobs) is not 0):
+            return jobs
         
+        jobs = self.db.views.jobs.pendingByJobAttributes(
+            startkey=[product, osname, pool, osversion, hardware, memory],
+            endkey=[product, osname, pool, osversion, hardware, memory + '\u9999'],
+            limit=1)
+        if (len(jobs) is not 0):
+            return jobs
+        
+        jobs = self.db.views.jobs.pendingByJobAttributes(
+            startkey=[product, osname, pool, osversion, hardware],
+            endkey=[product, osname, pool, osversion, hardware + '\u9999'],
+            limit=1)
+        if (len(jobs) is not 0):
+            return jobs
+
+        jobs = self.db.views.jobs.pendingByJobAttributes(
+            startkey=[product, osname, pool, osversion],
+            endkey=[product, osname, pool, osversion + '\u9999'],
+            limit=1)
+        if (len(jobs) is not 0):
+            return jobs
+
+        jobs = self.db.views.jobs.pendingByJobAttributes(
+            startkey=[product, osname, pool],
+            endkey=[product, osname, pool + '\u9999'],
+            limit=1)
+        if (len(jobs) is not 0):
+            return jobs
+
+        jobs = self.db.views.jobs.pendingByJobAttributes(
+            startkey=[product, osname],
+            endkey=[product, osname + '\u9999'],
+            limit=1)
+        if (len(jobs) is not 0):
+            return jobs
+
+        return None
+
+    def get_job(self, client):
+        if (client['capabilities'].get('jobtypes') == 'assign'):
+            # We have an Agent manager on the line send it an unassigned device
+            # Note that if we want Agent managers to respect pools, we will
+            # need to query a userdefined pool on the client struct as well
+            device = self.db.views.devices.byStatus(key='free', limit=1)
+            if (len(device) is 0):
                 return None
-    
+            else:
+                return device[0]
+        
+        job = self.findmatch(client['device'].get('product'),
+                             client['device']['platform'].get('osname'),
+                             client['device'].get('pool'),
+                             client['device']['platform'].get('osversion'),
+                             client['device']['platform'].get('hardware'),
+                             client['device']['platform'].get('memory'),
+                             client['device']['platform'].get('bpp'),
+                             client['device']['platform'].get('screenheight'),
+                             client['device']['platform'].get('screenwidth'))
+        if (len(job) is 0):
+            return None
+        else:
+            return job[0]
+     
     def new_build(self, build):
         jobs = []
         # Get the mapping of our job table
@@ -97,17 +159,17 @@ class MozillaManager(object):
                         if re.search(j['testpackage'], t):
                           testURI = t
                           break
+
                     # Create the jobs for this build
                     for jobtype in j['jobtypes']:
                       jobs.append({'build': j['build'],
                                    'jobtype': jobtype,
                                    'package_uri': packageURI,
                                    'tests_uri': testURI,
-                                   'product':j['build'],
+                                   'product':j['product'],
                                    'pool': j['pool'],
                                    'platform': j['platform']})
                     # We have created all jobs for this build, we can now return
-                    print "This is jobs created: " + str(jobs)
                     return jobs
  
                    

@@ -84,8 +84,15 @@ class TestBotAPI(RestApplication):
         # Make us a mapping for default maemo fennec job
         jobmap = {'type': 'jobmap',
                   'build':'.*fennec.*linux-gnueabi-arm\.tar\.bz2',
+                  'product': 'fennec',
                   'testpackage':'xulrunner.*linux-gnueabi-arm\.tests\.tar\.bz2',
-                  'platform': {'os.sysname': 'maemo'},
+                  'platform': {'os.sysname': 'maemo',
+                               'os.version': '',
+                               'hardware': '',
+                               'memory': '',
+                               'bpp':'',
+                               'screenh':'',
+                               'screenw':''},
                   'pool': 'general',
                   'jobtypes': ['mochitest', 'mochitest-chrome', 'browser-chrome', 'reftest', 'crashtest', 'js-reftest', 'xpcshell']
                  }
@@ -104,6 +111,7 @@ class TestBotAPI(RestApplication):
         
         # And one for firefoxCE
         jobmap['build'] = '.*firefox.*wince-arm\.zip'
+        jobmap['product'] = 'firefoxce'
         jobmap['testpackage'] = 'firefox.*wince-arm\.tests\.tar\.bz2'
         jobmap['platform']['os.sysname'] = 'wince'
         jobmap['platform']['hardware'] = 'mobinova' # we want to ensure this is mobinova tests
@@ -190,12 +198,13 @@ class TestBotAPI(RestApplication):
                                                "cmdport":request.query["CMDPORT"],
                                                "dataport":request.query["DATAPORT"],
                                                "os":request.query["OS"],
-                                               "scrnwidth":request.query["SCRNWIDTH"],
-                                               "scrnheight":request.query["SCRNHEIGHT"],
+                                               "screenw":request.query["SCRNWIDTH"],
+                                               "screenh":request.query["SCRNHEIGHT"],
                                                "bpp":request.query["BPP"],
                                                "memory":request.query["MEMORY"],
                                                "hardware": request.query["HARDWARE"],
-                                               "pool":request.query["POOL"]}) 
+                                               "pool":request.query["POOL"],
+                                               "status":"free"}) 
                 return JSONResponse(self.db.get(devicerecord['id']))
             else:
                 # Ensure data in database is correct, we'll just update,
@@ -207,12 +216,16 @@ class TestBotAPI(RestApplication):
                 rec["cmdport"] = request.query["CMDPORT"]
                 rec["dataport"] = request.query["DATAPORT"]
                 rec["os"] = request.query["OS"]
-                rec["scrnwidth"] = request.query["SCRNWIDTH"]
-                rec["scrnheight"] = request.query["SCRNHEIGHT"]
+                rec["screenw"] = request.query["SCRNWIDTH"]
+                rec["screenh"] = request.query["SCRNHEIGHT"]
                 rec["bpp"] = request.query["BPP"]
                 rec["memory"] = request.query["MEMORY"]
                 rec["hardware"] = request.query["HARDWARE"]
                 rec["pool"] = request.query["POOL"]
+                # The device agent only registers once, so if we already know
+                # about this device, chances are it was rebooted, so mark it
+                # as free
+                rec["status"] = "free"
                 info = self.db.update(rec)
                 return JSONResponse(info)
 
