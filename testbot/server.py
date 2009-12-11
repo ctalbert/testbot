@@ -122,7 +122,10 @@ class TestBotAPI(RestApplication):
     def POST(self, request, collection, resource=None):
         print "testBotAPI::Post request = " + str(request)
         if collection == 'getJob':
+            print "getJobSERVER request.body = " + str(request.body)
             client_dict = json.loads(str(request.body))
+            print "getJobSERVER client_dict = " + str(client_dict)
+
             client = self.db.get(client_dict['_id'])
             if dict(client) != client_dict:
                 client.update(client_dict)
@@ -168,7 +171,10 @@ class TestBotAPI(RestApplication):
         
         if collection == 'report':
             job = self.db.get(resource)
-            report = json.loads(str(request.body))
+            try:
+                report = json.loads(str(request.body))
+            except:
+                print "Server report function threw a error with: " + str(request.body)
             # Add in support for report handlers
             return JSONResponse(report) # Debug response
 
@@ -177,11 +183,16 @@ class TestBotAPI(RestApplication):
             name = request.query['name']
             assert name
             result = self.db.views.clients.byName(key=name)
+#          print "REGISTER whoami" + str(result)
             if len(result) is 0:
                 info = self.db.create({"type":"client", "name":name})
+ #               print "registering with " + str(info)
                 return JSONResponse(self.db.get(info['id']))
             else:
-                return JSONResponse(result[0])
+#                 pass
+#                print "register returns with : " + str(result[0])
+               return JSONResponse(result[0])
+
         # Registering a device must be as simple as possible, just read key
         # value pairs from command line, generate a document from that        
         if collection == 'registerdevice':
@@ -198,12 +209,14 @@ class TestBotAPI(RestApplication):
                                                "cmdport":request.query["CMDPORT"],
                                                "dataport":request.query["DATAPORT"],
                                                "os":request.query["OS"],
+                                               "osversion":request.query["OSVERSION"],
                                                "screenw":request.query["SCRNWIDTH"],
                                                "screenh":request.query["SCRNHEIGHT"],
                                                "bpp":request.query["BPP"],
                                                "memory":request.query["MEMORY"],
                                                "hardware": request.query["HARDWARE"],
                                                "pool":request.query["POOL"],
+                                               "product":request.query["PRODUCT"],
                                                "status":"free"}) 
                 return JSONResponse(self.db.get(devicerecord['id']))
             else:
@@ -216,11 +229,13 @@ class TestBotAPI(RestApplication):
                 rec["cmdport"] = request.query["CMDPORT"]
                 rec["dataport"] = request.query["DATAPORT"]
                 rec["os"] = request.query["OS"]
+                rec["osversion"] =request.query["OSVERSION"]
                 rec["screenw"] = request.query["SCRNWIDTH"]
                 rec["screenh"] = request.query["SCRNHEIGHT"]
                 rec["bpp"] = request.query["BPP"]
                 rec["memory"] = request.query["MEMORY"]
                 rec["hardware"] = request.query["HARDWARE"]
+                rec["product"] = request.query["PRODUCT"]
                 rec["pool"] = request.query["POOL"]
                 # The device agent only registers once, so if we already know
                 # about this device, chances are it was rebooted, so mark it

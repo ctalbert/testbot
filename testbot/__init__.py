@@ -69,60 +69,64 @@ class MozillaManager(object):
     
     def findmatch(self, product, osname, pool, osversion, hardware, memory, bpp, screenh, screenw):
 
+        print "**** About to find a match ***"
         # Go through the jobs and filter down from most specific job to least        
         jobs = self.db.views.jobs.pendingByJobAttributes(
-            startkey=[{}, product, osname, pool, osversion, hardware, memory, bpp, screenh],
-            endkey=[now, product, osname, pool, osversion, hardware, memory, bpp, screenh + '\u9999'],
+            startkey=[product, osname, pool, osversion, hardware, memory, bpp, screenh],
+            endkey=[product, osname, pool, osversion, hardware, memory, bpp, str(screenh) + '\u9999'],
             limit=1)
         if (len(jobs) is not 0):
             return jobs
 
         jobs = self.db.views.jobs.pendingByJobAttributes(
             startkey=[product, osname, pool, osversion, hardware, memory, bpp],
-            endkey=[product, osname, pool, osversion, hardware, memory, bpp + '\u9999'],
+            endkey=[product, osname, pool, osversion, hardware, memory, str(bpp) + '\u9999'],
             limit=1)
         if (len(jobs) is not 0):
             return jobs
         
         jobs = self.db.views.jobs.pendingByJobAttributes(
             startkey=[product, osname, pool, osversion, hardware, memory],
-            endkey=[product, osname, pool, osversion, hardware, memory + '\u9999'],
+            endkey=[product, osname, pool, osversion, hardware, str(memory) + '\u9999'],
             limit=1)
         if (len(jobs) is not 0):
             return jobs
         
         jobs = self.db.views.jobs.pendingByJobAttributes(
             startkey=[product, osname, pool, osversion, hardware],
-            endkey=[product, osname, pool, osversion, hardware + '\u9999'],
+            endkey=[product, osname, pool, osversion, str(hardware) + '\u9999'],
             limit=1)
         if (len(jobs) is not 0):
             return jobs
 
         jobs = self.db.views.jobs.pendingByJobAttributes(
             startkey=[product, osname, pool, osversion],
-            endkey=[product, osname, pool, osversion + '\u9999'],
+            endkey=[product, osname, pool, str(osversion) + '\u9999'],
             limit=1)
         if (len(jobs) is not 0):
             return jobs
 
         jobs = self.db.views.jobs.pendingByJobAttributes(
             startkey=[product, osname, pool],
-            endkey=[product, osname, pool + '\u9999'],
+            endkey=[product, osname, str(pool) + '\u9999'],
             limit=1)
         if (len(jobs) is not 0):
+            print "++++++ product os and pool match product = " + str(product) + " os = " + str(osname)
             return jobs
 
         jobs = self.db.views.jobs.pendingByJobAttributes(
             startkey=[product, osname],
-            endkey=[product, osname + '\u9999'],
+            endkey=[product, str(osname) + '\u9999'],
             limit=1)
         if (len(jobs) is not 0):
+            print "++++++ product and os match: product = " + str(product) + " os = " + str(osname)
             return jobs
 
+        print "FINDMATCH: returns no job"
         return None
 
     def get_job(self, client):
-        if (client['capabilities'].get('jobtypes') == 'assign'):
+        if (client['capabilities'].get('jobtypes')[0] == 'assign'):
             # We have an Agent manager on the line send it an unassigned device
             # Note that if we want Agent managers to respect pools, we will
             # need to query a userdefined pool on the client struct as well
@@ -131,17 +135,18 @@ class MozillaManager(object):
                 return None
             else:
                 return device[0]
-        
-        job = self.findmatch(client['device'].get('product'),
-                             client['device']['platform'].get('osname'),
-                             client['device'].get('pool'),
-                             client['device']['platform'].get('osversion'),
-                             client['device']['platform'].get('hardware'),
-                             client['device']['platform'].get('memory'),
-                             client['device']['platform'].get('bpp'),
-                             client['device']['platform'].get('screenheight'),
-                             client['device']['platform'].get('screenwidth'))
-        if (len(job) is 0):
+        print "SERVER: getting a job : " + str(client['capabilities'])
+        job = self.findmatch(client['capabilities']['device'].get('product'),
+                             client['capabilities']['device']['platform'].get('os'),
+                             client['capabilities']['device'].get('pool'),
+                             client['capabilities']['device']['platform'].get('osversion'),
+                             client['capabilities']['device']['platform'].get('hardware'),
+                             client['capabilities']['device']['platform'].get('memory'),
+                             client['capabilities']['device']['platform'].get('bpp'),
+                             client['capabilities']['device']['platform'].get('screenheight'),
+                             client['capabilities']['device']['platform'].get('screenwidth'))
+        if (not job or len(job) is 0):
+            print "SERVER: no job"
             return None
         else:
             return job[0]
